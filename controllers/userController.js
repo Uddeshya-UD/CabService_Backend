@@ -66,8 +66,16 @@ async function loginUser(req, res) {
  */
 async function getUserProfile(req, res) {
     try {
-        // req.user is set by authenticateToken middleware
-        const user = await User.findById(req.user.id).select('-password');
+        // Get token from Authorization header
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+        const user = await User.findById(decoded.id).select('-password');
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -76,9 +84,28 @@ async function getUserProfile(req, res) {
         return res.status(500).json({ message: "Error fetching user profile", error });
     }
 }
+/**
+ * Fetches all users with the role 'driver'.
+ */
+/**
+ * Fetches all users by role.
+ */
+async function getAllByRole(req, res) {
+    try {
+        const { role } = req.query;
+        if (!role) {
+            return res.status(400).json({ message: "Role query parameter is required" });
+        }
+        const users = await User.find({ role }).select('-password');
+        res.status(200).json({ message: `All users with role: ${role}`, users });
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching users by role", error });
+    }
+}
 
 module.exports = {
     registerUser,
     loginUser,
-    getUserProfile
+    getUserProfile,
+    getAllByRole
 };
